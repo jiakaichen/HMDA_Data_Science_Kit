@@ -14,3 +14,54 @@ The FFIEC Census flat file fields of interest are (column number :name):
 
 
 With the exception of FFIEC median family income percentage, the base data are available in the American Community Survey (ACS) or the Summary File from the [US Census Bureau](). The FFIEC median family income data are made available by the FFIEC on this [website](https://www.ffiec.gov/Medianincome.htm). Please note that the data provided by the FRB on behalf of the FFIEC incorporates annual changes made to geographic boundaries. These provided data update Census base data on a 5 year cycle, for example activity years 2012-2016 used the 2010 SF1/ACS 5 year datasets and the 2017 activity year changes to the 2015 ACS 5 year dataset. Some reference fields also change during this update cycle. For these reasons it is recommended to use the FFIEC Census data as these data will provide consistency with other HMDA publications, such as Aggregate and Disclosure reports.
+
+
+## Census tract vintage across collection years
+
+The five-year ACS refresh described above changes the *values* attached to a tract. Separately, the
+2020 Decennial Census changed which *geography* a tract code refers to. Census tract codes are
+therefore not comparable across all collection years.
+
+Regulation C requires reporting on the boundaries in effect at the start of the collection year:
+
+> A financial institution complies with § 1003.4(a)(9)(ii)(C) if it uses the boundaries and codes in
+> effect on January 1 of the calendar year covered by the loan/application register that it is
+> reporting.
+
+— [12 CFR Part 1003, Supplement I, Comment 4(a)(9)(ii)(C)-1](https://www.consumerfinance.gov/rules-policy/regulations/1003/Interp-4/)
+
+Applying that rule places a boundary between the 2021 and 2022 collection years:
+
+| Collection year | Tract basis |
+| --- | --- |
+| 2018 - 2021 | 2010 Decennial Census |
+| 2022 onward | 2020 Decennial Census |
+
+The FFIEC states the consequence in its 2022 Census File Information release:
+
+> For the 2020 Census, the Census Bureau drew new tract boundaries that do not necessarily coincide
+> with Census 2010 tract boundaries. This release relies on the 2020 Census tract boundaries.
+>
+> The two "Carried from previous year" flags are not available for this release as the 2020 Decennial
+> Census saw major changes to the census tract codes as compared to the 2010 Decennial Census used for
+> previous releases.
+
+— [2022 FFIEC Census File Information](https://www.ffiec.gov/sites/default/files/data/census/cen2022_26AUG22.pdf)
+
+An 11-digit GEOID (state + county + tract) can appear in both a pre-2022 and a post-2021 file while
+referring to a different geography. Checking whether a code is present in both years does not detect
+this, because the code itself is unchanged.
+
+**A single collection year is safe by construction.** The `create_and_load_lar_<year>.sql` scripts load
+one year per table, and the FFIEC census fields appended to each year's LAR are already on that year's
+tract basis.
+
+**Pooling collection years is not.** A query that unions LAR tables across the 2021/2022 boundary and
+then groups or joins on `census_tract` will combine two tract vintages without raising an error. For an
+analysis that spans the boundary, either report results partitioned by tract basis, or map codes
+between vintages using the Census Bureau's
+[2020 tract relationship files](https://www.census.gov/geographies/reference-files/time-series/geo/relationship-files.html)
+before aggregating.
+
+The same care applies to MSA/MD codes, which follow the OMB delineations in effect on 12/31 of the year
+preceding collection and change on their own schedule, independently of the decennial tract re-carving.
